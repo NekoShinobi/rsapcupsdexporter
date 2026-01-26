@@ -1,4 +1,4 @@
-FROM ghcr.io/xninjakittyx/rust-chef-sccache:main AS base
+FROM ghcr.io/nekoshinobi/rust-chef-sccache:main AS base
 FROM base AS planner
 WORKDIR /app
 COPY . .
