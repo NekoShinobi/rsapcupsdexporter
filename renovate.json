@@ -1,4 +1,5 @@
 {
+  "extends": ["config:recommended"],
   "packageRules": [
     {
       "groupName": "Rust Minor & Patch",
