@@ -23,7 +23,7 @@ This exporter connects to the apcupsd Network Information Server (NIS) to retrie
 ### Info Metric
 
 - `apcupsd_info` - UPS identification and configuration with labels:
-  - `apc`, `hostname`, `upsname`, `version`, `cable`, `model`, `upsmode`, `driver`, `apcmodel`
+  - `apc`, `hostname`, `upsname`, `version`, `cable`, `model`, `upsmode`, `driver`, `apcmodel`, `status`
 
 ### Gauge Metrics
 
