@@ -21,7 +21,7 @@ pub async fn metrics_handler(state: web::Data<Arc<Mutex<AppState>>>) -> Result<H
     let metric_families = state.registry.gather();
     let mut buffer = Vec::new();
     encoder.encode(&metric_families, &mut buffer).unwrap();
-    
+
     Ok(HttpResponse::Ok()
         .content_type("text/plain; charset=utf-8")
         .body(buffer))
@@ -41,22 +41,23 @@ fn update_metrics(state: &mut AppState) {
             &state.stats.get("UPSMODE").cloned().unwrap_or_default(),
             &state.stats.get("DRIVER").cloned().unwrap_or_default(),
             &state.stats.get("APCMODEL").cloned().unwrap_or_default(),
+            &state.stats.get("STATUS").cloned().unwrap_or_default(),
         ])
         .set(1);
 
     // Update numeric metrics as gauges
     let mut gauges = state.gauges.lock().unwrap();
-    
+
     for (key, value) in &state.stats {
         // Skip the tag keys that are already in the info metric
-        if matches!(key.as_str(), "APC" | "HOSTNAME" | "UPSNAME" | "VERSION" | "CABLE" | "MODEL" | "UPSMODE" | "DRIVER" | "APCMODEL") {
+        if matches!(key.as_str(), "APC" | "HOSTNAME" | "UPSNAME" | "VERSION" | "CABLE" | "MODEL" | "UPSMODE" | "DRIVER" | "APCMODEL" | "STATUS") {
             continue;
         }
 
         // Try to parse as f64
         if let Ok(numeric_value) = value.parse::<f64>() {
             let metric_name = format!("apcupsd_{}", key.to_lowercase());
-            
+
             // Get or create the gauge for this metric
             let gauge = gauges.entry(metric_name.clone()).or_insert_with(|| {
                 let opts = Opts::new(metric_name.clone(), format!("APC UPS {}", key));
@@ -64,8 +65,8 @@ fn update_metrics(state: &mut AppState) {
                 state.registry.register(Box::new(gauge_vec.clone())).unwrap();
                 gauge_vec
             });
-            
-            gauge.with_label_values(&[]).set(numeric_value);
+
+            gauge.with_label_values(&[] as &[&str]).set(numeric_value);
         }
     }
 }
@@ -98,18 +99,18 @@ async fn main() -> std::io::Result<()> {
         .expect("Failed to fetch initial APC UPS stats");
     debug!("Fetched stats: {:?}", stats);
     info!("Successfully fetched initial APC UPS stats");
-    
+
     // Create registry and metrics
     let registry = Registry::new();
-    
+
     // Create info gauge with all label names (using _metadata suffix to avoid info type confusion)
     let info_opts = Opts::new("apcupsd_metadata", "APC UPS daemon information");
     let info_gauge = IntGaugeVec::new(
         info_opts,
-        &["apc", "hostname", "upsname", "version", "cable", "model", "upsmode", "driver", "apcmodel"]
+        &["apc", "hostname", "upsname", "version", "cable", "model", "upsmode", "driver", "apcmodel", "status"]
     ).unwrap();
     registry.register(Box::new(info_gauge.clone())).unwrap();
-    
+
     let state = Arc::new(Mutex::new(AppState {
         registry,
         info_gauge,
