@@ -8,12 +8,17 @@ actix-web = { version = "4.12.1", default-features = false, features = ["compres
 env_logger = "0.11.8"
 log = "0.4.29"
 prometheus = { version = "0.14", features = ["process"] }
-tokio = { version = "1", default-features = false, features = ["time"] }
+tokio = { version = "1", default-features = false, features = ["time", "net", "io-util", "sync", "rt"] }
+
+[dev-dependencies]
+tokio = { version = "1", default-features = false, features = ["macros", "rt"] }
 
 [profile.release]
 opt-level = "z"     # Optimize for size
 lto = true          # Link Time Optimization
 codegen-units = 1   # Better optimization
 strip = true        # Strip symbols
-panic = "abort"     # Smaller panic handler
 overflow-checks = false  # Disable overflow checks in release
+# NOTE: `panic = "abort"` was removed deliberately. actix-web catches a
+# panicking request handler and turns it into a 500; with abort, any panic
+# anywhere takes the whole exporter down instead.

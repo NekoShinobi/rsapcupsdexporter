@@ -3,7 +3,7 @@ on:
   pull_request:
   push:
     branches:
-      - latest
+      - main
 
 env:
   # Use docker.io for Docker Hub if empty
@@ -12,8 +12,38 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo artifacts
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check formatting
+        run: cargo fmt --all --check
+
+      - name: Clippy
+        run: cargo clippy --locked --all-targets -- -D warnings
+
+      - name: Test
+        run: cargo test --locked --all-targets
+
   build:
     runs-on: ubuntu-latest
+    # Gate the image build on the test suite. Renovate automerges minor and
+    # patch bumps, so this job is the only thing standing between a broken
+    # dependency update and a published image.
+    needs: test
     permissions:
       contents: read
       packages: write
