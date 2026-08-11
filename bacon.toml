@@ -1,0 +1,36 @@
+# Bacon drives the development loop (`just dev`).
+# https://dystroy.org/bacon/
+#
+# This exporter persists nothing locally — it polls apcupsd over TCP and serves
+# Prometheus metrics — so there is no state directory for a restart loop to trip
+# over.
+
+default_job = "run"
+
+[jobs.check]
+command = ["cargo", "check", "--all-targets", "--color", "always"]
+need_stdout = false
+
+[jobs.clippy]
+command = ["cargo", "clippy", "--all-targets", "--color", "always", "--", "-D", "warnings"]
+need_stdout = false
+
+[jobs.test]
+command = ["cargo", "test", "--all-targets", "--color", "always"]
+need_stdout = true
+
+# Rebuild and restart the exporter on every source change. `background = false`
+# keeps its stdout streaming, and `kill_then_restart` makes the old process
+# release the metrics port before the new one binds it.
+[jobs.run]
+command = ["cargo", "run", "--color", "always"]
+need_stdout = true
+allow_warnings = true
+background = false
+on_change_strategy = "kill_then_restart"
+
+[keybindings]
+c = "job:check"
+l = "job:clippy"
+r = "job:run"
+t = "job:test"

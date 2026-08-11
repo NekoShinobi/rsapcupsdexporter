@@ -5,7 +5,9 @@ services:
       - "9090:9090"
     environment:
       - RUST_LOG=info
-      - APCUPSD_HOST=${APCUPSD_HOST}
+      # Comma-separated list of host or host:port targets, e.g.
+      # APCUPSD_TARGETS=192.168.1.100:3551,192.168.1.101:3551
+      - APCUPSD_TARGETS=${APCUPSD_TARGETS:-${APCUPSD_HOST}}
       - APCUPSD_PORT=3551
       - INTERVAL=10
       - TIMEOUT=15

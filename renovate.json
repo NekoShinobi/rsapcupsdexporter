@@ -1,11 +1,19 @@
 {
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended"],
+  "minimumReleaseAge": "3 days",
+  "internalChecksFilter": "strict",
   "packageRules": [
     {
       "groupName": "Rust Minor & Patch",
       "matchManagers": ["cargo"],
       "matchUpdateTypes": ["minor", "patch"],
       "labels": ["rust", "dependencies"]
+    },
+    {
+      "groupName": "GitHub Actions",
+      "matchManagers": ["github-actions"],
+      "labels": ["ci", "dependencies"]
     }
   ]
 }

@@ -1,0 +1,41 @@
+# Development stack — `just up-dev`.
+#
+# This is the parity path, not the daily loop: `just dev` runs bacon on the host,
+# which is faster and needs none of the ownership or volume plumbing below.
+#
+# There is no stateful dependency to start: the exporter polls apcupsd over TCP
+# at APCUPSD_TARGETS and persists nothing, so no dev-data split is needed.
+services:
+  rsapcupsdexporter:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      args:
+        DEV_UID: ${DEV_UID:-1000}
+        DEV_GID: ${DEV_GID:-1000}
+    image: rsapcupsdexporter:dev
+    container_name: rsapcupsdexporter_dev
+    ports:
+      - "${METRICS_PORT:-9090}:9090"
+    volumes:
+      - .:/app
+      # Container-generated and never read from the host. A separate target
+      # directory also keeps this build from fighting the host's cargo lock.
+      - cargo-cache:/usr/local/cargo/registry
+      - target-cache:/app/target
+    environment:
+      - RUST_LOG=${RUST_LOG:-info}
+      - APCUPSD_TARGETS=${APCUPSD_TARGETS:-${APCUPSD_HOST:-}}
+      - APCUPSD_PORT=${APCUPSD_PORT:-3551}
+      - INTERVAL=${INTERVAL:-10}
+      - TIMEOUT=${TIMEOUT:-15}
+      - METRICS_PORT=9090
+      # Named volumes arrive root-owned; the entrypoint chowns these before
+      # dropping to DEV_UID, or the first build fails writing /app/target.
+      - DEV_CHOWN_PATHS=/app/target /usr/local/cargo/registry /usr/local/cargo/git
+    # bacon rebuilds and restarts the exporter when a source file changes.
+    command: bacon --headless run
+
+volumes:
+  cargo-cache:
+  target-cache:

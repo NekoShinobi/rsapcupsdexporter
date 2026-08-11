@@ -1,8 +1,11 @@
 name: default
+# `main` is the remote default but has not moved in months; active work lands on
+# `latest`, so a push there previously ran no checks at all.
 on:
   pull_request:
   push:
     branches:
+      - main
       - latest
 
 env:
@@ -12,8 +15,38 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo artifacts
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install just
+        uses: extractions/setup-just@v3
+
+      # One definition of the gate. These were three inline steps
+      # restating the bodies of fmt-check, lint and test, free to drift
+      # from the recipes developers actually run.
+      - name: Run the full gate
+        run: just ci
+
   build:
     runs-on: ubuntu-latest
+    # Gate the image build on the test suite. Renovate automerges minor and
+    # patch bumps, so this job is the only thing standing between a broken
+    # dependency update and a published image.
+    needs: test
     permissions:
       contents: read
       packages: write

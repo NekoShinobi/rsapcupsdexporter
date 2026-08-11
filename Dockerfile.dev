@@ -1,0 +1,39 @@
+# Development image (`just up-dev`).
+#
+# Stable base, matching rust-toolchain.toml. Only the toolchain lives here; the
+# sources arrive through a bind mount and `target/` plus the cargo registry are
+# named volumes, so a rebuild in the container never touches the host's own
+# ./target. Cargo locks a target directory, so sharing one would make a host
+# `just check` and this container's bacon block each other.
+FROM rust:1-slim
+
+ARG DEV_UID=1000
+ARG DEV_GID=1000
+
+# Baked in so the entrypoint can chown the cache volumes at runtime, before
+# dropping privileges. Docker creates named volumes owned by root.
+ENV DEV_UID=${DEV_UID}
+ENV DEV_GID=${DEV_GID}
+
+WORKDIR /app
+
+# gosu drops from root to the host user in the entrypoint.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates gosu \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN cargo install --locked bacon
+
+RUN if ! getent group "${DEV_GID}" >/dev/null; then groupadd --gid "${DEV_GID}" app; fi \
+    && if ! getent passwd "${DEV_UID}" >/dev/null; then \
+         useradd --uid "${DEV_UID}" --gid "${DEV_GID}" --create-home --non-unique app; \
+       fi \
+    && mkdir -p /app/target /usr/local/cargo/registry /usr/local/cargo/git \
+    && chown -R "${DEV_UID}:${DEV_GID}" /app /usr/local/cargo
+
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+EXPOSE 9090
+
+ENTRYPOINT ["docker-entrypoint.sh"]
