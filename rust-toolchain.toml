@@ -3,8 +3,12 @@
 # dtolnay/rust-toolchain@stable. Pinning it here means local dev, CI and the dev
 # container all resolve the same compiler instead of each taking whatever their
 # environment defaults to.
-#
-# The only nightly requirement is `-Zmin-publish-age` in `just deps-update`,
-# which asks for it per invocation with `cargo +nightly`.
 channel = "stable"
 components = ["rustfmt", "clippy"]
+
+# The production Dockerfile cross-compiles to musl and ships FROM scratch. The
+# target MUST be declared here, not only via `rustup target add` in the
+# Dockerfile: that command runs before `COPY . .` brings this file in, so it
+# adds musl to the base image's toolchain, and this pin then resolves a
+# different one without it — `can't find crate for std`.
+targets = ["x86_64-unknown-linux-musl"]

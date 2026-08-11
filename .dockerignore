@@ -1,4 +1,33 @@
-compose.yml
+# Rust build output — 5.9 GB here, and by far the largest source of
+# build-context bloat. The image builds its own via cargo chef.
+target/
+
+# Version-control and CI metadata
+.git
+.gitignore
+.dockerignore
+.github
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# Dev-only tooling, not referenced by the production Dockerfile
 Dockerfile
+Dockerfile.dev
+docker-entrypoint.sh
+compose.yml
+compose.dev.yml
+justfile
+bacon.toml
+renovate.json
+
+# Documentation
 LICENSE
 README.md
+
+# Editor and OS metadata
+.DS_Store
+*.swp
+*.swo
