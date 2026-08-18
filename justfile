@@ -51,6 +51,33 @@ run *args:
 build:
     cargo build --release
 
+# CI calls this recipe rather than re-listing the cargo and tar commands, so the
+# artifact attached to the rolling `continuous` release is built the same way as
+# the one you get locally. The archive is deliberately flat — a single binary, no
+# wrapper directory — so `curl ... | tar -xz` in the README drops an executable
+# in the current directory and nothing else.
+
+# Package the static release archive for one target triple into dist/.
+[group('build')]
+dist target="x86_64-unknown-linux-musl":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    target="{{ target }}"
+
+    # Idempotent, and keeps the recipe runnable on a fresh clone where only the
+    # host target from rust-toolchain.toml is installed.
+    rustup target add "$target"
+    cargo build --release --locked --target "$target"
+
+    mkdir -p dist
+    archive="dist/rsapcupsdexporter-${target}.tar.gz"
+    tar -czf "$archive" -C "target/${target}/release" rsapcupsdexporter
+
+    # Checksum recorded with a bare filename so `sha256sum -c` works from
+    # whatever directory the user downloaded the archive into.
+    (cd dist && sha256sum "rsapcupsdexporter-${target}.tar.gz" \
+        > "rsapcupsdexporter-${target}.tar.gz.sha256")
+
 # ── Quality ───────────────────────────────────────────────────────────────────
 
 # Fast type-check — no formatting, no linting, no tests.

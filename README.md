@@ -108,6 +108,35 @@ Serves the most recent cached readings for every target in `APCUPSD_TARGETS`.
 Polling happens in the background on the `INTERVAL` cadence, so this endpoint
 responds immediately and never blocks on a slow or unreachable UPS.
 
+## Download
+
+Prebuilt binaries are published on every push to `latest`, as the rolling
+[`continuous`](https://github.com/xNinjaKittyx/rsapcupsdexporter/releases/tag/continuous) release. They are statically
+linked against musl, so they run on any Linux distribution with no runtime
+dependencies — no glibc version to match, nothing to install alongside them.
+
+| Platform | Archive |
+| ---------- | --------- |
+| Linux x86_64 | [`rsapcupsdexporter-x86_64-unknown-linux-musl.tar.gz`](https://github.com/xNinjaKittyx/rsapcupsdexporter/releases/download/continuous/rsapcupsdexporter-x86_64-unknown-linux-musl.tar.gz) |
+| Linux aarch64 / arm64 | [`rsapcupsdexporter-aarch64-unknown-linux-musl.tar.gz`](https://github.com/xNinjaKittyx/rsapcupsdexporter/releases/download/continuous/rsapcupsdexporter-aarch64-unknown-linux-musl.tar.gz) |
+
+Each archive ships a `.sha256` sidecar next to it:
+
+```bash
+BASE=https://github.com/xNinjaKittyx/rsapcupsdexporter/releases/download/continuous
+TARGET=x86_64-unknown-linux-musl   # or aarch64-unknown-linux-musl
+
+curl -fsSLO "$BASE/rsapcupsdexporter-$TARGET.tar.gz"
+curl -fsSLO "$BASE/rsapcupsdexporter-$TARGET.tar.gz.sha256"
+sha256sum -c "rsapcupsdexporter-$TARGET.tar.gz.sha256"
+
+tar -xzf "rsapcupsdexporter-$TARGET.tar.gz"
+```
+
+The `continuous` tag is rebuilt and moved on every push, so these links always
+resolve to the newest build rather than a fixed one. It is marked as a
+prerelease so that it never displaces a real version tag on the releases page.
+
 ## Usage
 
 ### Docker Standalone
@@ -141,6 +170,9 @@ services:
 
 ### Binary
 
+Grab an archive from [Download](#download), or build one yourself with
+`just dist`, then:
+
 ```bash
 export APCUPSD_TARGETS=192.168.1.100:3551
 ./rsapcupsdexporter
@@ -155,6 +187,16 @@ Metrics will be available at `http://localhost:9090/metrics`
 ```bash
 rustup target add x86_64-unknown-linux-musl
 cargo build --release --target x86_64-unknown-linux-musl
+```
+
+### Release archive
+
+`just dist` produces the same `.tar.gz` and `.sha256` pair that CI attaches to
+the `continuous` release, under `dist/`:
+
+```bash
+just dist                                 # x86_64-unknown-linux-musl
+just dist aarch64-unknown-linux-musl      # arm64
 ```
 
 ### Docker

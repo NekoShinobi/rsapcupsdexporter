@@ -2,6 +2,9 @@
 # build-context bloat. The image builds its own via cargo chef.
 target/
 
+# Release archives from `just dist`
+dist/
+
 # Version-control and CI metadata
 .git
 .gitignore
@@ -16,7 +19,6 @@ target/
 # Dev-only tooling, not referenced by the production Dockerfile
 Dockerfile
 Dockerfile.dev
-docker-entrypoint.sh
 compose.yml
 compose.dev.yml
 justfile
@@ -31,3 +33,7 @@ README.md
 .DS_Store
 *.swp
 *.swo
+
+# Note: docker-entrypoint.sh is deliberately NOT ignored — Dockerfile.dev
+# copies it into the development image, and excluding it fails the build with
+# "docker-entrypoint.sh: not found".

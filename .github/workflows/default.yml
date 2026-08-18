@@ -99,3 +99,115 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # Static musl binaries, for people who would rather not run a container.
+  # Runs on PRs too — without it, a change that only breaks cross-compilation
+  # (a new dependency pulling in a C library, say) would sail through review and
+  # first fail on the push to `latest`.
+  binaries:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.runner }}
+    needs: test
+    permissions:
+      contents: read
+
+    strategy:
+      # One arch failing should still tell you whether the other one built.
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-musl
+            runner: ubuntu-latest
+          # Built natively rather than cross-compiled. The dependency tree is
+          # pure Rust (no -sys crates, no cc build scripts), so a native arm64
+          # runner needs nothing beyond the musl target — no cross linker, no
+          # `cross`, no QEMU.
+          - target: aarch64-unknown-linux-musl
+            runner: ubuntu-24.04-arm
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          # Added here rather than in rust-toolchain.toml's `targets`: that file
+          # is read by every local cargo invocation, and listing aarch64 there
+          # would make every developer download a std they never build against.
+          targets: ${{ matrix.target }}
+
+      - name: Cache cargo artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          # Both matrix legs share a job id, so without this they would fight
+          # over one cache entry.
+          key: ${{ matrix.target }}
+
+      - name: Install musl toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends musl-tools
+
+      - name: Install just
+        uses: extractions/setup-just@v3
+
+      # Same recipe developers run locally, so the published artifact cannot
+      # drift from the one you can reproduce on your own machine.
+      - name: Build the release archive
+        run: just dist ${{ matrix.target }}
+
+      - name: Upload the archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.target }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
+
+  # Republish the rolling `continuous` release so the README download links keep
+  # pointing at the newest build of `latest`.
+  release:
+    name: Publish continuous release
+    runs-on: ubuntu-latest
+    needs: binaries
+    if: github.event_name == 'push' && github.ref == 'refs/heads/latest'
+    permissions:
+      contents: write
+
+    # Two pushes in quick succession would otherwise race to delete and recreate
+    # the same release, and the loser can leave it with no assets at all.
+    concurrency:
+      group: continuous-release
+      cancel-in-progress: false
+
+    steps:
+      - name: Download every architecture's archive
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: dist-*
+          merge-multiple: true
+
+      - name: Publish the rolling release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          # A release's tag cannot be repointed in place, so the rolling release
+          # is torn down and rebuilt on the new commit each run. `|| true`
+          # because the very first run has nothing to delete.
+          gh release delete continuous --yes --cleanup-tag || true
+
+          # Marked prerelease so it never steals the "Latest" badge from a real
+          # version tag. Download links use the explicit /download/continuous/
+          # path, which works regardless of that flag.
+          gh release create continuous dist/* \
+            --prerelease \
+            --target "$GITHUB_SHA" \
+            --title "Continuous build" \
+            --notes "Static binaries built from \`${GITHUB_SHA:0:7}\` on the \`latest\` branch.
+
+          Rebuilt on every push, so this tag moves. Pin a versioned release instead if you need a stable artifact.
+
+          Verify a download with \`sha256sum -c <archive>.sha256\`."
