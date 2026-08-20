@@ -33,7 +33,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Install just
-        uses: extractions/setup-just@v3
+        uses: extractions/setup-just@v4
 
       # One definition of the gate. These were three inline steps
       # restating the bodies of fmt-check, lint and test, free to drift
@@ -150,7 +150,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends musl-tools
 
       - name: Install just
-        uses: extractions/setup-just@v3
+        uses: extractions/setup-just@v4
 
       # Same recipe developers run locally, so the published artifact cannot
       # drift from the one you can reproduce on your own machine.
@@ -158,7 +158,7 @@ jobs:
         run: just dist ${{ matrix.target }}
 
       - name: Upload the archive
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dist-${{ matrix.target }}
           path: dist/
@@ -183,7 +183,7 @@ jobs:
 
     steps:
       - name: Download every architecture's archive
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: dist
           pattern: dist-*
